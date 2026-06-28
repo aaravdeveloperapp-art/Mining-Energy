@@ -147,6 +147,27 @@
       "status": "active",
       "kycStatus": "unverified",
       "createdAt": "2026-06-28T15:48:50.101Z"
+    },
+    {
+      "id": "user_z0payf3",
+      "fullName": "Test User",
+      "mobile": "9182213005",
+      "email": "test88pv9h@example.com",
+      "passwordHash": "password123",
+      "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=user_z0payf3",
+      "role": "user",
+      "referralCode": "MINE798565",
+      "wallet": {
+        "deposit_balance": 0,
+        "profit_balance": 0,
+        "bonus_balance": 100,
+        "referral_balance": 0,
+        "frozen_balance": 0,
+        "total_balance": 100
+      },
+      "status": "active",
+      "kycStatus": "unverified",
+      "createdAt": "2026-06-28T17:01:38.160Z"
     }
   ],
   "plans": [
@@ -394,6 +415,25 @@
       "status": "completed",
       "remarks": "Welcome Signup Reward",
       "createdAt": "2026-06-28T15:48:50.101Z"
+    },
+    {
+      "id": "tx_onhaqha",
+      "userId": "user_88l882c",
+      "type": "deposit",
+      "amount": 700,
+      "status": "pending",
+      "remarks": "Recharge wallet request via UPI",
+      "createdAt": "2026-06-28T16:32:12.881Z",
+      "paymentReference": "789456123147"
+    },
+    {
+      "id": "tx_zezp8tk",
+      "userId": "user_z0payf3",
+      "type": "signup_bonus",
+      "amount": 100,
+      "status": "completed",
+      "remarks": "Welcome Signup Reward",
+      "createdAt": "2026-06-28T17:01:38.160Z"
     }
   ],
   "referrals": [
