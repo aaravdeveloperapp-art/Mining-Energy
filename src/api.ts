@@ -30,11 +30,24 @@ async function fetchWithAuth(endpoint: string, options: RequestInit = {}): Promi
     headers
   });
 
-  const data = await response.json();
-  if (!response.ok) {
-    throw new Error(data.error || 'Something went wrong');
+  const contentType = response.headers.get('content-type');
+  if (contentType && contentType.includes('application/json')) {
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || `Error ${response.status}: ${response.statusText}`);
+    }
+    return data;
+  } else {
+    const text = await response.text();
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText || 'Error'} - ${text.substring(0, 100)}`);
+    }
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      throw new Error(`Invalid JSON response: ${text.substring(0, 100)}`);
+    }
   }
-  return data;
 }
 
 export const api = {

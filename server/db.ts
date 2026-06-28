@@ -1,5 +1,7 @@
 import fs from 'fs';
 import path from 'path';
+import { initializeApp, getApps } from 'firebase-admin/app';
+import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { 
   User, InvestmentPlan, Investment, DailyEarning, 
   Transaction, ReferralLog, SupportTicket, Announcement, AppBanner 
@@ -137,14 +139,13 @@ const DEFAULT_ANNOUNCEMENTS: Announcement[] = [
   }
 ];
 
-// Seed initial users: one admin and one regular demo user with pre-loaded active plans & referral rewards
 const DEFAULT_USERS: User[] = [
   {
     id: 'user_admin',
     fullName: 'Mining Energy Admin',
     mobile: '9999999999',
     email: 'admin@miningenergy.com',
-    passwordHash: 'admin', // Simple cleartext password for easy demo-testing
+    passwordHash: 'admin',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
     role: 'admin',
     referralCode: 'ADMIN77',
@@ -165,7 +166,7 @@ const DEFAULT_USERS: User[] = [
     fullName: 'Aarav Sharma',
     mobile: '8888888888',
     email: 'demo@miningenergy.com',
-    passwordHash: 'password', // Simple password for testing
+    passwordHash: 'password',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
     role: 'user',
     referralCode: 'MINE888',
@@ -226,7 +227,6 @@ const DEFAULT_USERS: User[] = [
   }
 ];
 
-// Preload the demo user with 2 active plans, so there is instantly data to visualize!
 const DEFAULT_INVESTMENTS: Investment[] = [
   {
     id: 'inv_demo_1',
@@ -236,11 +236,11 @@ const DEFAULT_INVESTMENTS: Investment[] = [
     purchaseAmount: 300,
     dailyIncome: 12,
     totalIncome: 360,
-    earnedIncome: 48, // 4 days worth already earned
+    earnedIncome: 48,
     durationDays: 30,
     startDate: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
     endDate: new Date(Date.now() + 26 * 24 * 60 * 60 * 1000).toISOString(),
-    lastClaimDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // Claimed 1 day ago
+    lastClaimDate: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(),
     status: 'active'
   },
   {
@@ -251,7 +251,7 @@ const DEFAULT_INVESTMENTS: Investment[] = [
     purchaseAmount: 700,
     dailyIncome: 30,
     totalIncome: 1350,
-    earnedIncome: 60, // 2 days worth already earned
+    earnedIncome: 60,
     durationDays: 45,
     startDate: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     endDate: new Date(Date.now() + 43 * 24 * 60 * 60 * 1000).toISOString(),
@@ -335,84 +335,312 @@ const DEFAULT_TRANSACTIONS: Transaction[] = [
   }
 ];
 
-export function readDb(): DatabaseState {
-  try {
-    if (!fs.existsSync(DB_DIR)) {
-      fs.mkdirSync(DB_DIR, { recursive: true });
-    }
-    if (!fs.existsSync(DB_FILE)) {
-      const initialState: DatabaseState = {
-        users: DEFAULT_USERS,
-        plans: DEFAULT_PLANS,
-        investments: DEFAULT_INVESTMENTS,
-        earnings: DEFAULT_EARNINGS,
-        transactions: DEFAULT_TRANSACTIONS,
-        referrals: [
+function getInitialDefaultState(): DatabaseState {
+  return {
+    users: DEFAULT_USERS,
+    plans: DEFAULT_PLANS,
+    investments: DEFAULT_INVESTMENTS,
+    earnings: DEFAULT_EARNINGS,
+    transactions: DEFAULT_TRANSACTIONS,
+    referrals: [
+      {
+        id: 'ref_log_1',
+        referrerId: 'user_admin',
+        referredUserId: 'user_demo',
+        referredUserName: 'Aarav Sharma',
+        level: 1,
+        commissionAmount: 150,
+        createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
+      }
+    ],
+    tickets: [
+      {
+        id: 'ticket_demo_1',
+        userId: 'user_demo',
+        userEmail: 'demo@miningenergy.com',
+        subject: 'Withdrawal Speed Query',
+        category: 'withdraw',
+        message: 'What are the usual processing windows for bank transfers?',
+        status: 'replied',
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+        replies: [
           {
-            id: 'ref_log_1',
-            referrerId: 'user_admin',
-            referredUserId: 'user_demo',
-            referredUserName: 'Aarav Sharma',
-            level: 1,
-            commissionAmount: 150,
-            createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
-          }
-        ],
-        tickets: [
-          {
-            id: 'ticket_demo_1',
-            userId: 'user_demo',
-            userEmail: 'demo@miningenergy.com',
-            subject: 'Withdrawal Speed Query',
-            category: 'withdraw',
+            sender: 'user',
             message: 'What are the usual processing windows for bank transfers?',
-            status: 'replied',
-            createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-            replies: [
-              {
-                sender: 'user',
-                message: 'What are the usual processing windows for bank transfers?',
-                createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
-              },
-              {
-                sender: 'admin',
-                message: 'Hello Aarav, transfers take less than 1 hour on weekdays and up to 3 hours on weekends. Standard UPI withdrawal is almost instant!',
-                createdAt: new Date(Date.now() - 1.9 * 24 * 60 * 60 * 1000).toISOString()
-              }
-            ]
+            createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString()
+          },
+          {
+            sender: 'admin',
+            message: 'Hello Aarav, transfers take less than 1 hour on weekdays and up to 3 hours on weekends. Standard UPI withdrawal is almost instant!',
+            createdAt: new Date(Date.now() - 1.9 * 24 * 60 * 60 * 1000).toISOString()
           }
-        ],
-        announcements: DEFAULT_ANNOUNCEMENTS,
-        banners: DEFAULT_BANNERS
-      };
-      fs.writeFileSync(DB_FILE, JSON.stringify(initialState, null, 2), 'utf-8');
-      return initialState;
+        ]
+      }
+    ],
+    announcements: DEFAULT_ANNOUNCEMENTS,
+    banners: DEFAULT_BANNERS
+  };
+}
+
+// -------------------------------------------------------------
+// FIREBASE FIRESTORE CONFIGURATION & INTEGRATION
+// -------------------------------------------------------------
+
+let db: Firestore;
+let isFirestoreInitialized = false;
+
+function initFirebase() {
+  if (isFirestoreInitialized) return;
+
+  const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+  let projectId = 'gen-lang-client-0406680691'; // Fallback
+  let databaseId = 'ai-studio-miningenergy-16093c56-eb68-48b7-9360-8e2c96337d7c';
+
+  if (fs.existsSync(configPath)) {
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      if (config.projectId) projectId = config.projectId;
+      if (config.firestoreDatabaseId) databaseId = config.firestoreDatabaseId;
+    } catch (e) {
+      console.error('[Firestore] Error parsing firebase-applet-config.json', e);
     }
-    const raw = fs.readFileSync(DB_FILE, 'utf-8');
-    return JSON.parse(raw);
-  } catch (error) {
-    console.error('Error reading JSON database, resetting to default', error);
-    return {
-      users: DEFAULT_USERS,
-      plans: DEFAULT_PLANS,
-      investments: DEFAULT_INVESTMENTS,
-      earnings: DEFAULT_EARNINGS,
-      transactions: DEFAULT_TRANSACTIONS,
-      referrals: [],
-      tickets: [],
-      announcements: DEFAULT_ANNOUNCEMENTS,
-      banners: DEFAULT_BANNERS
+  }
+
+  if (getApps().length === 0) {
+    initializeApp({
+      projectId: projectId,
+    });
+  }
+
+  try {
+    db = databaseId ? getFirestore(databaseId) : getFirestore();
+    console.log(`[Firestore] Connected to database: ${databaseId || '(default)'}`);
+  } catch (e) {
+    console.warn('[Firestore] Custom database initialization failed, falling back to default:', e);
+    db = getFirestore();
+  }
+
+  isFirestoreInitialized = true;
+}
+
+// Memory Cache States
+let currentMemoryState: DatabaseState | null = null;
+let lastSyncedState: DatabaseState | null = null;
+
+export async function initializeFirestoreDb(): Promise<void> {
+  initFirebase();
+  console.log('[Firestore] Loading data from Firestore...');
+
+  const loadCollection = async <T>(collectionName: string): Promise<T[]> => {
+    try {
+      const snapshot = await db.collection(collectionName).get();
+      const list: T[] = [];
+      snapshot.forEach(doc => {
+        list.push(doc.data() as T);
+      });
+      return list;
+    } catch (e) {
+      console.error(`[Firestore] Failed to read collection ${collectionName}, returning empty`, e);
+      return [];
+    }
+  };
+
+  const [
+    users, plans, investments, earnings, 
+    transactions, referrals, tickets, announcements, banners
+  ] = await Promise.all([
+    loadCollection<User>('users'),
+    loadCollection<InvestmentPlan>('plans'),
+    loadCollection<Investment>('investments'),
+    loadCollection<DailyEarning>('earnings'),
+    loadCollection<Transaction>('transactions'),
+    loadCollection<ReferralLog>('referrals'),
+    loadCollection<SupportTicket>('tickets'),
+    loadCollection<Announcement>('announcements'),
+    loadCollection<AppBanner>('banners')
+  ]);
+
+  const isFirestoreEmpty = users.length === 0 && investments.length === 0;
+
+  if (isFirestoreEmpty) {
+    console.log('[Firestore] Firestore is blank. Migrating local db.json or seeding default states...');
+    
+    let seedState: DatabaseState;
+    if (fs.existsSync(DB_FILE)) {
+      try {
+        const raw = fs.readFileSync(DB_FILE, 'utf-8');
+        seedState = JSON.parse(raw);
+        console.log('[Firestore] Migrating local db.json to Firestore Cloud...');
+      } catch (e) {
+        console.error('[Firestore] Failed to parse db.json, seeding defaults', e);
+        seedState = getInitialDefaultState();
+      }
+    } else {
+      seedState = getInitialDefaultState();
+    }
+
+    // Direct Batch seeding
+    const batchWrite = async <T extends { id: string }>(collectionName: string, items: T[]) => {
+      if (items.length === 0) return;
+      const chunks: T[][] = [];
+      for (let i = 0; i < items.length; i += 400) {
+        chunks.push(items.slice(i, i + 400));
+      }
+      for (const chunk of chunks) {
+        const batch = db.batch();
+        chunk.forEach(item => {
+          const docRef = db.collection(collectionName).doc(item.id);
+          batch.set(docRef, item);
+        });
+        await batch.commit();
+      }
+      console.log(`[Firestore] Seeded ${items.length} items into collection "${collectionName}"`);
     };
+
+    await Promise.all([
+      batchWrite('users', seedState.users),
+      batchWrite('plans', seedState.plans),
+      batchWrite('investments', seedState.investments),
+      batchWrite('earnings', seedState.earnings),
+      batchWrite('transactions', seedState.transactions),
+      batchWrite('referrals', seedState.referrals),
+      batchWrite('tickets', seedState.tickets),
+      batchWrite('announcements', seedState.announcements),
+      batchWrite('banners', seedState.banners)
+    ]);
+
+    currentMemoryState = seedState;
+    lastSyncedState = JSON.parse(JSON.stringify(seedState));
+  } else {
+    console.log('[Firestore] Data loaded successfully from cloud collections.');
+    currentMemoryState = {
+      users,
+      plans: plans.length > 0 ? plans : DEFAULT_PLANS,
+      investments,
+      earnings,
+      transactions,
+      referrals,
+      tickets,
+      announcements: announcements.length > 0 ? announcements : DEFAULT_ANNOUNCEMENTS,
+      banners: banners.length > 0 ? banners : DEFAULT_BANNERS
+    };
+    lastSyncedState = JSON.parse(JSON.stringify(currentMemoryState));
   }
 }
 
+// Synchronous readDb for standard routes
+export function readDb(): DatabaseState {
+  if (!currentMemoryState) {
+    console.warn('[Firestore] readDb called before initialization. Initializing synchronously with defaults...');
+    // Return local db or fallback state
+    if (fs.existsSync(DB_FILE)) {
+      try {
+        return JSON.parse(fs.readFileSync(DB_FILE, 'utf-8'));
+      } catch (e) {}
+    }
+    return getInitialDefaultState();
+  }
+  return currentMemoryState;
+}
+
+// Background sync managers
+let isSyncing = false;
+let syncPending = false;
+
 export function writeDb(state: DatabaseState): void {
+  // Update local memory state instantly
+  currentMemoryState = JSON.parse(JSON.stringify(state));
+
+  // Write local fallback file
   try {
     if (!fs.existsSync(DB_DIR)) {
       fs.mkdirSync(DB_DIR, { recursive: true });
     }
-    fs.writeFileSync(DB_FILE, JSON.stringify(state, null, 2), 'utf-8');
+    fs.writeFileSync(DB_FILE, JSON.stringify(currentMemoryState, null, 2), 'utf-8');
   } catch (error) {
-    console.error('Error writing to JSON database', error);
+    console.error('Error writing local fallback JSON database', error);
+  }
+
+  // Trigger non-blocking cloud Firestore synchronization
+  triggerSync();
+}
+
+function triggerSync() {
+  if (isSyncing) {
+    syncPending = true;
+    return;
+  }
+
+  isSyncing = true;
+  syncPending = false;
+
+  performSync()
+    .catch(err => {
+      console.error('[Firestore] Background Sync Error:', err);
+    })
+    .finally(() => {
+      isSyncing = false;
+      if (syncPending) {
+        setTimeout(triggerSync, 1000);
+      }
+    });
+}
+
+async function performSync() {
+  if (!currentMemoryState || !lastSyncedState) return;
+
+  const stateToSync = JSON.parse(JSON.stringify(currentMemoryState)) as DatabaseState;
+  const oldState = JSON.parse(JSON.stringify(lastSyncedState)) as DatabaseState;
+
+  await Promise.all([
+    syncCollectionDiff('users', stateToSync.users, oldState.users),
+    syncCollectionDiff('plans', stateToSync.plans, oldState.plans),
+    syncCollectionDiff('investments', stateToSync.investments, oldState.investments),
+    syncCollectionDiff('earnings', stateToSync.earnings, oldState.earnings),
+    syncCollectionDiff('transactions', stateToSync.transactions, oldState.transactions),
+    syncCollectionDiff('referrals', stateToSync.referrals, oldState.referrals),
+    syncCollectionDiff('tickets', stateToSync.tickets, oldState.tickets),
+    syncCollectionDiff('announcements', stateToSync.announcements, oldState.announcements),
+    syncCollectionDiff('banners', stateToSync.banners, oldState.banners)
+  ]);
+
+  lastSyncedState = stateToSync;
+}
+
+async function syncCollectionDiff<T extends { id: string }>(
+  collectionName: string,
+  newList: T[],
+  oldList: T[]
+) {
+  if (!db) return;
+
+  const oldMap = new Map(oldList.map(item => [item.id, item]));
+  const newMap = new Map(newList.map(item => [item.id, item]));
+
+  const batch = db.batch();
+  let operationCount = 0;
+
+  // Added or modified
+  for (const item of newList) {
+    const oldItem = oldMap.get(item.id);
+    if (!oldItem || JSON.stringify(item) !== JSON.stringify(oldItem)) {
+      const docRef = db.collection(collectionName).doc(item.id);
+      batch.set(docRef, item);
+      operationCount++;
+    }
+  }
+
+  // Deleted
+  for (const item of oldList) {
+    if (!newMap.has(item.id)) {
+      const docRef = db.collection(collectionName).doc(item.id);
+      batch.delete(docRef);
+      operationCount++;
+    }
+  }
+
+  if (operationCount > 0) {
+    await batch.commit();
+    console.log(`[Firestore] Synced ${operationCount} changes to collection "${collectionName}"`);
   }
 }

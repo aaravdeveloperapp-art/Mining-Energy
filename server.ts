@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
-import { readDb, writeDb, DatabaseState } from './server/db';
+import { readDb, writeDb, DatabaseState, initializeFirestoreDb } from './server/db';
 import { 
   User, Investment, DailyEarning, Transaction, 
   ReferralLog, SupportTicket, InvestmentPlan, Announcement 
@@ -17,6 +17,9 @@ declare global {
 }
 
 async function startServer() {
+  // Initialize cloud database connection and load initial sync
+  await initializeFirestoreDb();
+
   const app = express();
   const PORT = 3000;
 
