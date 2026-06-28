@@ -433,6 +433,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 let db: Firestore;
 let isFirestoreInitialized = false;
+let isCloudDbAccessible = false;
 
 function initFirebase() {
   if (isFirestoreInitialized) return;
@@ -591,7 +592,9 @@ export async function initializeFirestoreDb(): Promise<void> {
       };
       lastSyncedState = JSON.parse(JSON.stringify(currentMemoryState));
     }
+    isCloudDbAccessible = true;
   } catch (error) {
+    isCloudDbAccessible = false;
     console.error('[Firestore] Failed to initialize Firestore. Operating in local-only fallback mode.', error);
   }
 }
@@ -655,6 +658,9 @@ function triggerSync() {
 }
 
 async function performSync() {
+  if (!isCloudDbAccessible) {
+    return;
+  }
   if (!currentMemoryState || !lastSyncedState) return;
 
   const stateToSync = JSON.parse(JSON.stringify(currentMemoryState)) as DatabaseState;
