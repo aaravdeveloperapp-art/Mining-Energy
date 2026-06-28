@@ -17,8 +17,14 @@ declare global {
 }
 
 async function startServer() {
-  // Initialize cloud database connection and load initial sync
-  await initializeFirestoreDb();
+  // Initialize cloud database connection in background (non-blocking)
+  initializeFirestoreDb()
+    .then(() => {
+      console.log('[Firestore] Cloud database initialization completed.');
+    })
+    .catch(err => {
+      console.error('[Firestore] Background cloud database initialization failed:', err);
+    });
 
   const app = express();
   const PORT = 3000;

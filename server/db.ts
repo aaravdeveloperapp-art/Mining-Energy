@@ -386,6 +386,51 @@ function getInitialDefaultState(): DatabaseState {
 // FIREBASE FIRESTORE CONFIGURATION & INTEGRATION
 // -------------------------------------------------------------
 
+export enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+export interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId?: string | null;
+    email?: string | null;
+    emailVerified?: boolean | null;
+    isAnonymous?: boolean | null;
+    tenantId?: string | null;
+    providerInfo?: {
+      providerId?: string | null;
+      email?: string | null;
+    }[];
+  }
+}
+
+export function handleFirestoreError(error: unknown, operationType: OperationType, pathName: string | null): never {
+  const errMessage = error instanceof Error ? error.message : String(error);
+  const errInfo: FirestoreErrorInfo = {
+    error: errMessage,
+    authInfo: {
+      userId: 'server',
+      email: 'server@miningenergy.com',
+      emailVerified: true,
+      isAnonymous: false,
+      tenantId: null,
+      providerInfo: []
+    },
+    operationType,
+    path: pathName
+  };
+  console.error('[Firestore] Standardized Error: ', JSON.stringify(errInfo));
+  throw new Error(JSON.stringify(errInfo));
+}
+
 let db: Firestore;
 let isFirestoreInitialized = false;
 
@@ -427,104 +472,127 @@ function initFirebase() {
 let currentMemoryState: DatabaseState | null = null;
 let lastSyncedState: DatabaseState | null = null;
 
+// Warm up cache synchronously at module load time to prevent blocking or uninitialized reads
+try {
+  if (fs.existsSync(DB_FILE)) {
+    const raw = fs.readFileSync(DB_FILE, 'utf-8');
+    currentMemoryState = JSON.parse(raw);
+    lastSyncedState = JSON.parse(raw);
+    console.log('[Firestore] Synchronous pre-load: Loaded database cache from local db.json.');
+  } else {
+    const seed = getInitialDefaultState();
+    currentMemoryState = seed;
+    lastSyncedState = JSON.parse(JSON.stringify(seed));
+    console.log('[Firestore] Synchronous pre-load: Initialized database cache with default state.');
+  }
+} catch (e) {
+  const seed = getInitialDefaultState();
+  currentMemoryState = seed;
+  lastSyncedState = JSON.parse(JSON.stringify(seed));
+  console.log('[Firestore] Synchronous pre-load: Fallback to defaults due to error reading db.json:', e);
+}
+
 export async function initializeFirestoreDb(): Promise<void> {
-  initFirebase();
-  console.log('[Firestore] Loading data from Firestore...');
+  try {
+    initFirebase();
+    console.log('[Firestore] Loading data from Firestore...');
 
-  const loadCollection = async <T>(collectionName: string): Promise<T[]> => {
-    try {
-      const snapshot = await db.collection(collectionName).get();
-      const list: T[] = [];
-      snapshot.forEach(doc => {
-        list.push(doc.data() as T);
-      });
-      return list;
-    } catch (e) {
-      console.error(`[Firestore] Failed to read collection ${collectionName}, returning empty`, e);
-      return [];
-    }
-  };
-
-  const [
-    users, plans, investments, earnings, 
-    transactions, referrals, tickets, announcements, banners
-  ] = await Promise.all([
-    loadCollection<User>('users'),
-    loadCollection<InvestmentPlan>('plans'),
-    loadCollection<Investment>('investments'),
-    loadCollection<DailyEarning>('earnings'),
-    loadCollection<Transaction>('transactions'),
-    loadCollection<ReferralLog>('referrals'),
-    loadCollection<SupportTicket>('tickets'),
-    loadCollection<Announcement>('announcements'),
-    loadCollection<AppBanner>('banners')
-  ]);
-
-  const isFirestoreEmpty = users.length === 0 && investments.length === 0;
-
-  if (isFirestoreEmpty) {
-    console.log('[Firestore] Firestore is blank. Migrating local db.json or seeding default states...');
-    
-    let seedState: DatabaseState;
-    if (fs.existsSync(DB_FILE)) {
+    const loadCollection = async <T>(collectionName: string): Promise<T[]> => {
       try {
-        const raw = fs.readFileSync(DB_FILE, 'utf-8');
-        seedState = JSON.parse(raw);
-        console.log('[Firestore] Migrating local db.json to Firestore Cloud...');
-      } catch (e) {
-        console.error('[Firestore] Failed to parse db.json, seeding defaults', e);
-        seedState = getInitialDefaultState();
-      }
-    } else {
-      seedState = getInitialDefaultState();
-    }
-
-    // Direct Batch seeding
-    const batchWrite = async <T extends { id: string }>(collectionName: string, items: T[]) => {
-      if (items.length === 0) return;
-      const chunks: T[][] = [];
-      for (let i = 0; i < items.length; i += 400) {
-        chunks.push(items.slice(i, i + 400));
-      }
-      for (const chunk of chunks) {
-        const batch = db.batch();
-        chunk.forEach(item => {
-          const docRef = db.collection(collectionName).doc(item.id);
-          batch.set(docRef, item);
+        const snapshot = await db.collection(collectionName).get();
+        const list: T[] = [];
+        snapshot.forEach(doc => {
+          list.push(doc.data() as T);
         });
-        await batch.commit();
+        return list;
+      } catch (e) {
+        handleFirestoreError(e, OperationType.GET, collectionName);
       }
-      console.log(`[Firestore] Seeded ${items.length} items into collection "${collectionName}"`);
     };
 
-    await Promise.all([
-      batchWrite('users', seedState.users),
-      batchWrite('plans', seedState.plans),
-      batchWrite('investments', seedState.investments),
-      batchWrite('earnings', seedState.earnings),
-      batchWrite('transactions', seedState.transactions),
-      batchWrite('referrals', seedState.referrals),
-      batchWrite('tickets', seedState.tickets),
-      batchWrite('announcements', seedState.announcements),
-      batchWrite('banners', seedState.banners)
+    const [
+      users, plans, investments, earnings, 
+      transactions, referrals, tickets, announcements, banners
+    ] = await Promise.all([
+      loadCollection<User>('users'),
+      loadCollection<InvestmentPlan>('plans'),
+      loadCollection<Investment>('investments'),
+      loadCollection<DailyEarning>('earnings'),
+      loadCollection<Transaction>('transactions'),
+      loadCollection<ReferralLog>('referrals'),
+      loadCollection<SupportTicket>('tickets'),
+      loadCollection<Announcement>('announcements'),
+      loadCollection<AppBanner>('banners')
     ]);
 
-    currentMemoryState = seedState;
-    lastSyncedState = JSON.parse(JSON.stringify(seedState));
-  } else {
-    console.log('[Firestore] Data loaded successfully from cloud collections.');
-    currentMemoryState = {
-      users,
-      plans: plans.length > 0 ? plans : DEFAULT_PLANS,
-      investments,
-      earnings,
-      transactions,
-      referrals,
-      tickets,
-      announcements: announcements.length > 0 ? announcements : DEFAULT_ANNOUNCEMENTS,
-      banners: banners.length > 0 ? banners : DEFAULT_BANNERS
-    };
-    lastSyncedState = JSON.parse(JSON.stringify(currentMemoryState));
+    const isFirestoreEmpty = users.length === 0 && investments.length === 0;
+
+    if (isFirestoreEmpty) {
+      console.log('[Firestore] Firestore is blank. Migrating local db.json or seeding default states...');
+      
+      let seedState: DatabaseState;
+      if (fs.existsSync(DB_FILE)) {
+        try {
+          const raw = fs.readFileSync(DB_FILE, 'utf-8');
+          seedState = JSON.parse(raw);
+          console.log('[Firestore] Migrating local db.json to Firestore Cloud...');
+        } catch (e) {
+          console.error('[Firestore] Failed to parse db.json, seeding defaults', e);
+          seedState = getInitialDefaultState();
+        }
+      } else {
+        seedState = getInitialDefaultState();
+      }
+
+      // Direct Batch seeding
+      const batchWrite = async <T extends { id: string }>(collectionName: string, items: T[]) => {
+        if (items.length === 0) return;
+        const chunks: T[][] = [];
+        for (let i = 0; i < items.length; i += 400) {
+          chunks.push(items.slice(i, i + 400));
+        }
+        for (const chunk of chunks) {
+          const batch = db.batch();
+          chunk.forEach(item => {
+            const docRef = db.collection(collectionName).doc(item.id);
+            batch.set(docRef, item);
+          });
+          await batch.commit();
+        }
+        console.log(`[Firestore] Seeded ${items.length} items into collection "${collectionName}"`);
+      };
+
+      await Promise.all([
+        batchWrite('users', seedState.users),
+        batchWrite('plans', seedState.plans),
+        batchWrite('investments', seedState.investments),
+        batchWrite('earnings', seedState.earnings),
+        batchWrite('transactions', seedState.transactions),
+        batchWrite('referrals', seedState.referrals),
+        batchWrite('tickets', seedState.tickets),
+        batchWrite('announcements', seedState.announcements),
+        batchWrite('banners', seedState.banners)
+      ]);
+
+      currentMemoryState = seedState;
+      lastSyncedState = JSON.parse(JSON.stringify(seedState));
+    } else {
+      console.log('[Firestore] Data loaded successfully from cloud collections.');
+      currentMemoryState = {
+        users,
+        plans: plans.length > 0 ? plans : DEFAULT_PLANS,
+        investments,
+        earnings,
+        transactions,
+        referrals,
+        tickets,
+        announcements: announcements.length > 0 ? announcements : DEFAULT_ANNOUNCEMENTS,
+        banners: banners.length > 0 ? banners : DEFAULT_BANNERS
+      };
+      lastSyncedState = JSON.parse(JSON.stringify(currentMemoryState));
+    }
+  } catch (error) {
+    console.error('[Firestore] Failed to initialize Firestore. Operating in local-only fallback mode.', error);
   }
 }
 
@@ -640,7 +708,11 @@ async function syncCollectionDiff<T extends { id: string }>(
   }
 
   if (operationCount > 0) {
-    await batch.commit();
-    console.log(`[Firestore] Synced ${operationCount} changes to collection "${collectionName}"`);
+    try {
+      await batch.commit();
+      console.log(`[Firestore] Synced ${operationCount} changes to collection "${collectionName}"`);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, collectionName);
+    }
   }
 }

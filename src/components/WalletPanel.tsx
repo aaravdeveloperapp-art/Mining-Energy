@@ -132,7 +132,7 @@ export default function WalletPanel({
   };
 
   const copyUpiToClipboard = () => {
-    navigator.clipboard.writeText('miningenergy@ybl');
+    navigator.clipboard.writeText('8144553816@ybl');
     setCopiedUpi(true);
     setTimeout(() => setCopiedUpi(false), 2000);
   };
@@ -601,33 +601,21 @@ export default function WalletPanel({
                 </div>
               ) : (
                 <>
-                  {/* Mock QR code */}
+                  {/* Real QR code via QR Server API */}
                   <div className="bg-white p-3 rounded-2xl w-44 h-44 mx-auto flex items-center justify-center shadow-lg border border-slate-800">
-                    {/* Visual Mock of QR code */}
-                    <div className="relative w-full h-full bg-slate-100 flex flex-col items-center justify-center border-4 border-slate-900 rounded-lg p-2 overflow-hidden">
-                      <div className="grid grid-cols-5 grid-rows-5 gap-1.5 w-full h-full opacity-70">
-                        {Array.from({ length: 25 }).map((_, i) => (
-                          <div 
-                            key={i} 
-                            className={`rounded-xs ${
-                              (i % 3 === 0 && i % 2 === 0) || i === 0 || i === 4 || i === 20 || i === 24 
-                                ? 'bg-slate-900' 
-                                : 'bg-transparent'
-                            }`} 
-                          />
-                        ))}
-                      </div>
-                      <span className="absolute inset-0 m-auto bg-primary text-white text-[9px] font-extrabold w-10 h-10 rounded-full flex items-center justify-center shadow-md">
-                        ₹{rechargeAmount}
-                      </span>
-                    </div>
+                    <img 
+                      src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(`upi://pay?pa=8144553816@ybl&pn=Mining Energy&am=${rechargeAmount}&cu=INR`)}`}
+                      alt="UPI QR Code"
+                      className="w-full h-full rounded-lg"
+                      referrerPolicy="no-referrer"
+                    />
                   </div>
 
                   {/* Copy Handle Box */}
                   <div className="bg-slate-950 p-3 rounded-2xl border border-slate-850 flex justify-between items-center text-xs">
                     <div>
                       <span className="text-[10px] text-slate-500 block">UPI MERCHANT</span>
-                      <strong className="text-slate-200 font-mono">miningenergy@ybl</strong>
+                      <strong className="text-slate-200 font-mono">8144553816@ybl</strong>
                     </div>
                     <button
                       onClick={copyUpiToClipboard}

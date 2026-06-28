@@ -105,6 +105,48 @@
       "status": "active",
       "kycStatus": "unverified",
       "createdAt": "2026-06-28T15:01:11.740Z"
+    },
+    {
+      "id": "user_eumfsiw",
+      "fullName": "AARAV SAHU",
+      "mobile": "8260297061",
+      "email": "aaravdeveloperapp99@gmail.com",
+      "passwordHash": "147/",
+      "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=user_eumfsiw",
+      "role": "user",
+      "referralCode": "MINE198263",
+      "wallet": {
+        "deposit_balance": 5000,
+        "profit_balance": 0,
+        "bonus_balance": 100,
+        "referral_balance": 0,
+        "frozen_balance": 0,
+        "total_balance": 5100
+      },
+      "status": "active",
+      "kycStatus": "unverified",
+      "createdAt": "2026-06-28T15:31:05.787Z"
+    },
+    {
+      "id": "user_88l882c",
+      "fullName": "AARAV SAHU",
+      "mobile": "7735667103",
+      "email": "aaravdeveloperapp78@gmail.com",
+      "passwordHash": "773566",
+      "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=user_88l882c",
+      "role": "user",
+      "referralCode": "MINE856980",
+      "wallet": {
+        "deposit_balance": 0,
+        "profit_balance": 0,
+        "bonus_balance": 100,
+        "referral_balance": 0,
+        "frozen_balance": 0,
+        "total_balance": 100
+      },
+      "status": "active",
+      "kycStatus": "unverified",
+      "createdAt": "2026-06-28T15:48:50.101Z"
     }
   ],
   "plans": [
@@ -314,6 +356,44 @@
       "status": "completed",
       "remarks": "Welcome Signup Reward",
       "createdAt": "2026-06-28T15:01:11.740Z"
+    },
+    {
+      "id": "tx_2hh19hg",
+      "userId": "user_eumfsiw",
+      "type": "signup_bonus",
+      "amount": 100,
+      "status": "completed",
+      "remarks": "Welcome Signup Reward",
+      "createdAt": "2026-06-28T15:31:05.787Z"
+    },
+    {
+      "id": "tx_fk7uyru",
+      "userId": "user_eumfsiw",
+      "type": "deposit",
+      "amount": 5000,
+      "status": "completed",
+      "remarks": "Recharge approved: ₹5000 credited to Deposit Wallet",
+      "createdAt": "2026-06-28T15:31:33.748Z",
+      "paymentReference": "777777744455555555555555"
+    },
+    {
+      "id": "tx_o4j94ly",
+      "userId": "user_eumfsiw",
+      "type": "deposit",
+      "amount": 5000,
+      "status": "pending",
+      "remarks": "Recharge wallet request via UPI",
+      "createdAt": "2026-06-28T15:31:52.978Z",
+      "paymentReference": "4545458756544"
+    },
+    {
+      "id": "tx_jjt8gn9",
+      "userId": "user_88l882c",
+      "type": "signup_bonus",
+      "amount": 100,
+      "status": "completed",
+      "remarks": "Welcome Signup Reward",
+      "createdAt": "2026-06-28T15:48:50.101Z"
     }
   ],
   "referrals": [
