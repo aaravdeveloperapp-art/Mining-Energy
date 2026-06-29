@@ -62,7 +62,8 @@
       },
       "status": "active",
       "kycStatus": "verified",
-      "createdAt": "2026-06-28T14:33:58.095Z"
+      "createdAt": "2026-06-28T14:33:58.095Z",
+      "lastLogin": "2026-06-29T02:12:46.247Z"
     },
     {
       "id": "user_aarav12",
@@ -168,6 +169,27 @@
       "status": "active",
       "kycStatus": "unverified",
       "createdAt": "2026-06-28T17:01:38.160Z"
+    },
+    {
+      "id": "user_b8q82yx",
+      "fullName": "AARAV SAHU",
+      "mobile": "9178833405",
+      "email": "aaravdeveloperapp85@gmail.com",
+      "passwordHash": "766102",
+      "avatar": "https://api.dicebear.com/7.x/bottts/svg?seed=user_b8q82yx",
+      "role": "user",
+      "referralCode": "MINE747718",
+      "wallet": {
+        "deposit_balance": 0,
+        "profit_balance": 0,
+        "bonus_balance": 100,
+        "referral_balance": 0,
+        "frozen_balance": 0,
+        "total_balance": 100
+      },
+      "status": "active",
+      "kycStatus": "unverified",
+      "createdAt": "2026-06-29T02:06:21.100Z"
     }
   ],
   "plans": [
@@ -434,6 +456,15 @@
       "status": "completed",
       "remarks": "Welcome Signup Reward",
       "createdAt": "2026-06-28T17:01:38.160Z"
+    },
+    {
+      "id": "tx_hit1krt",
+      "userId": "user_b8q82yx",
+      "type": "signup_bonus",
+      "amount": 100,
+      "status": "completed",
+      "remarks": "Welcome Signup Reward",
+      "createdAt": "2026-06-29T02:06:21.100Z"
     }
   ],
   "referrals": [

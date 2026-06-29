@@ -2,6 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { initializeApp, getApps } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
+import { getAuth } from 'firebase-admin/auth';
 import { 
   User, InvestmentPlan, Investment, DailyEarning, 
   Transaction, ReferralLog, SupportTicket, Announcement, AppBanner 
@@ -432,10 +433,11 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 }
 
 let db: Firestore;
+export let adminAuth: any;
 let isFirestoreInitialized = false;
 let isCloudDbAccessible = false;
 
-function initFirebase() {
+export function initFirebase() {
   if (isFirestoreInitialized) return;
 
   const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
@@ -460,10 +462,12 @@ function initFirebase() {
 
   try {
     db = databaseId ? getFirestore(databaseId) : getFirestore();
+    adminAuth = getAuth();
     console.log(`[Firestore] Connected to database: ${databaseId || '(default)'}`);
   } catch (e) {
     console.warn('[Firestore] Custom database initialization failed, falling back to default:', e);
     db = getFirestore();
+    adminAuth = getAuth();
   }
 
   isFirestoreInitialized = true;

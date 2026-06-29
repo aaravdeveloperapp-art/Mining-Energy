@@ -19,6 +19,7 @@ export default function AdminPanel({ currentUser }: AdminPanelProps) {
   const [recharges, setRecharges] = useState<any[]>([]);
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [plans, setPlans] = useState<InvestmentPlan[]>([]);
   
   // Loading & refresh states
   const [loading, setLoading] = useState(false);
@@ -75,6 +76,9 @@ export default function AdminPanel({ currentUser }: AdminPanelProps) {
       } else if (activeTab === 'tickets') {
         const ticketsData = await api.getAdminTickets();
         setTickets(ticketsData.tickets);
+      } else if (activeTab === 'plans') {
+        const plansData = await api.getPlans();
+        setPlans(plansData.plans);
       }
     } catch (err: any) {
       console.error('Error fetching admin data', err);
@@ -198,8 +202,20 @@ export default function AdminPanel({ currentUser }: AdminPanelProps) {
       setTimeout(() => {
         setPlanSuccess(false);
       }, 3500);
+      fetchAdminData();
     } catch (err: any) {
       alert(err.message || 'Plan creation failed.');
+    }
+  };
+
+  const handleDeletePlan = async (planId: string) => {
+    if (!window.confirm('Are you sure you want to permanently delete this plan?')) return;
+    try {
+      await api.deleteAdminPlan(planId);
+      alert('Plan deleted successfully!');
+      fetchAdminData();
+    } catch (err: any) {
+      alert(err.message || 'Failed to delete plan.');
     }
   };
 
@@ -862,6 +878,51 @@ export default function AdminPanel({ currentUser }: AdminPanelProps) {
                 <Plus className="w-4 h-4" /> Deploy Plan to Storefront
               </button>
             </form>
+
+            <div className="mt-8 pt-6 border-t border-slate-850">
+              <h3 className="text-sm font-bold text-slate-200 mb-4">Active Mining Plans</h3>
+              <div className="grid gap-4">
+                {plans.length === 0 ? (
+                  <p className="text-center text-slate-500 text-xs py-4">No mining plans available.</p>
+                ) : (
+                  plans.map((plan) => (
+                    <div key={plan.id} className="bg-slate-950 border border-slate-800 p-4 rounded-2xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-slate-900 rounded-xl overflow-hidden shrink-0 border border-slate-800">
+                          {plan.image ? (
+                            <img src={plan.image} alt={plan.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-600">
+                              <Cpu className="w-5 h-5" />
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <h4 className="font-bold text-slate-200 text-sm">{plan.name}</h4>
+                            <span className={`text-[8px] font-mono font-bold px-1.5 py-0.5 rounded-sm ${plan.category === 'vip' ? 'bg-amber-500/10 text-amber-500' : 'bg-slate-800 text-slate-400'}`}>
+                              {plan.category.toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="flex gap-3 text-[10px] text-slate-400 font-mono">
+                            <span>Price: <strong className="text-slate-300">₹{plan.price}</strong></span>
+                            <span>Yield: <strong className="text-emerald-400">₹{plan.dailyIncome}/day</strong></span>
+                            <span>Term: <strong className="text-slate-300">{plan.durationDays}d</strong></span>
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => handleDeletePlan(plan.id)}
+                        className="p-2.5 bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white rounded-xl transition-all cursor-pointer border border-rose-500/20"
+                        title="Delete Plan"
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

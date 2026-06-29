@@ -70,6 +70,15 @@ export const api = {
     return data;
   },
 
+  googleLogin: async (payload: { idToken: string, referralCode?: string }) => {
+    const data = await fetchWithAuth('/auth/google', {
+      method: 'POST',
+      body: JSON.stringify(payload)
+    });
+    setToken(data.token);
+    return data;
+  },
+
   getProfile: async () => {
     return fetchWithAuth('/auth/me');
   },

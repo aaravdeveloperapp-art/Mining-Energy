@@ -1,7 +1,7 @@
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
-import { readDb, writeDb, DatabaseState, initializeFirestoreDb } from './server/db';
+import { readDb, writeDb, DatabaseState, initializeFirestoreDb, adminAuth } from './server/db';
 import { 
   User, Investment, DailyEarning, Transaction, 
   ReferralLog, SupportTicket, InvestmentPlan, Announcement 
@@ -186,6 +186,94 @@ async function startServer() {
     writeDb(db);
 
     res.json({ token: 'session_' + user.id, user });
+  });
+
+  app.post('/api/auth/google', async (req: Request, res: Response) => {
+    try {
+      const { idToken, referralCode } = req.body;
+      if (!idToken) {
+        return res.status(400).json({ error: 'Missing ID Token' });
+      }
+
+      if (!adminAuth) {
+        return res.status(500).json({ error: 'Firebase Admin not initialized on server' });
+      }
+
+      const decodedToken = await adminAuth.verifyIdToken(idToken);
+      const email = decodedToken.email;
+      const name = decodedToken.name || 'Google User';
+      const uid = decodedToken.uid;
+
+      if (!email) {
+        return res.status(400).json({ error: 'Google account missing email' });
+      }
+
+      const db = readDb();
+      let user = db.users.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+      if (user) {
+        if (user.status === 'suspended') {
+          return res.status(403).json({ error: 'This account has been suspended. Please contact customer support.' });
+        }
+        // update last login
+        user.lastLogin = new Date().toISOString();
+        writeDb(db);
+        return res.json({ token: 'session_' + user.id, user });
+      }
+
+      // Create new user if not exists
+      const userId = 'user_' + Math.random().toString(36).substr(2, 9);
+      
+      const newUser: User = {
+        id: userId,
+        fullName: name,
+        mobile: '', // No mobile from Google usually
+        email: email.toLowerCase(),
+        passwordHash: uid, // Use UID as a placeholder password
+        avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${userId}`,
+        role: 'user',
+        referralCode: 'ME' + Math.floor(Math.random() * 900000 + 100000),
+        wallet: {
+          deposit_balance: 0,
+          profit_balance: 0,
+          bonus_balance: 50, // Welcome bonus!
+          referral_balance: 0,
+          frozen_balance: 0,
+          total_balance: 50
+        },
+        status: 'active',
+        kycStatus: 'unverified',
+        createdAt: new Date().toISOString()
+      };
+
+      db.users.push(newUser);
+
+      // Handle Referral Logic (simplified)
+      if (referralCode) {
+        const referrer = db.users.find(u => u.referralCode === referralCode);
+        if (referrer) {
+          referrer.wallet.bonus_balance += 25;
+          referrer.wallet.total_balance += 25;
+          
+          const referralLog: ReferralLog = {
+            id: 'ref_' + Math.random().toString(36).substr(2, 9),
+            referrerUserId: referrer.id,
+            referredUserId: userId,
+            referredUserName: name,
+            level: 1,
+            commissionAmount: 0,
+            createdAt: new Date().toISOString()
+          };
+          db.referrals.push(referralLog);
+        }
+      }
+
+      writeDb(db);
+      res.json({ token: 'session_' + userId, user: newUser });
+    } catch (error: any) {
+      console.error('[Google Auth Error]', error);
+      res.status(401).json({ error: 'Invalid Google credential' });
+    }
   });
 
   app.get('/api/auth/me', requireAuth, (req: Request, res: Response) => {
